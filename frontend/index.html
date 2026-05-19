@@ -1,0 +1,640 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CoughSense — Respiratory Risk Screening</title>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet" />
+<style>
+  :root {
+    --bg: #0a0e17;
+    --surface: #111827;
+    --surface2: #1a2235;
+    --border: #1e2d45;
+    --accent: #00d4ff;
+    --accent2: #7c3aed;
+    --green: #10b981;
+    --orange: #f59e0b;
+    --red: #ef4444;
+    --text: #e2e8f0;
+    --muted: #64748b;
+    --glow: rgba(0, 212, 255, 0.15);
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  /* ── Background grid ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 0;
+    background-image:
+      linear-gradient(rgba(0,212,255,.03) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(0,212,255,.03) 1px, transparent 1px);
+    background-size: 40px 40px;
+    pointer-events: none;
+  }
+
+  /* ── Radial glow blobs ── */
+  .blob { position: fixed; border-radius: 50%; filter: blur(80px); z-index: 0; pointer-events: none; }
+  .blob-1 { width: 600px; height: 600px; top: -200px; left: -150px; background: rgba(0,212,255,.05); }
+  .blob-2 { width: 500px; height: 500px; bottom: -200px; right: -100px; background: rgba(124,58,237,.07); }
+
+  /* ── Layout ── */
+  .container {
+    position: relative; z-index: 1;
+    max-width: 920px; margin: 0 auto;
+    padding: 48px 24px 80px;
+  }
+
+  /* ── Header ── */
+  header { text-align: center; margin-bottom: 56px; }
+
+  .logo {
+    display: inline-flex; align-items: center; gap: 10px;
+    font-family: 'Syne', sans-serif; font-size: 13px; font-weight: 600;
+    letter-spacing: .2em; text-transform: uppercase; color: var(--accent);
+    border: 1px solid rgba(0,212,255,.25); border-radius: 30px;
+    padding: 6px 18px; margin-bottom: 28px;
+    background: rgba(0,212,255,.05);
+  }
+  .logo-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--accent); animation: pulse 2s infinite; }
+
+  h1 {
+    font-family: 'Syne', sans-serif; font-size: clamp(2.4rem, 5vw, 3.8rem);
+    font-weight: 800; line-height: 1.1; margin-bottom: 16px;
+    background: linear-gradient(135deg, #fff 0%, var(--accent) 60%, var(--accent2) 100%);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  }
+
+  .subtitle { font-size: 1.05rem; color: var(--muted); font-weight: 300; max-width: 500px; margin: 0 auto; line-height: 1.6; }
+
+  /* ── Upload card ── */
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 36px;
+    margin-bottom: 28px;
+    position: relative; overflow: hidden;
+    transition: border-color .3s;
+  }
+  .card::before {
+    content: ''; position: absolute; inset: 0; border-radius: 20px;
+    background: linear-gradient(135deg, rgba(0,212,255,.04), transparent 60%);
+    pointer-events: none;
+  }
+
+  .card-label {
+    font-family: 'DM Mono', monospace; font-size: 11px; font-weight: 500;
+    letter-spacing: .15em; text-transform: uppercase; color: var(--accent);
+    margin-bottom: 20px; display: flex; align-items: center; gap: 8px;
+  }
+  .card-label::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  /* ── Drop zone ── */
+  .drop-zone {
+    border: 2px dashed var(--border);
+    border-radius: 14px;
+    padding: 52px 32px;
+    text-align: center;
+    cursor: pointer;
+    transition: all .25s;
+    position: relative;
+  }
+  .drop-zone:hover, .drop-zone.dragover {
+    border-color: var(--accent);
+    background: var(--glow);
+  }
+  .drop-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+
+  .drop-icon {
+    width: 56px; height: 56px; margin: 0 auto 16px;
+    background: linear-gradient(135deg, rgba(0,212,255,.15), rgba(124,58,237,.1));
+    border-radius: 14px; display: flex; align-items: center; justify-content: center;
+    font-size: 26px;
+  }
+  .drop-title { font-family: 'Syne', sans-serif; font-size: 1.1rem; font-weight: 600; margin-bottom: 6px; }
+  .drop-sub { font-size: .85rem; color: var(--muted); }
+  .drop-formats { font-family: 'DM Mono', monospace; font-size: .75rem; color: var(--accent); margin-top: 10px; }
+
+  /* ── Record button ── */
+  .or-divider {
+    text-align: center; color: var(--muted); font-size: .8rem;
+    font-family: 'DM Mono', monospace; letter-spacing: .1em;
+    margin: 22px 0; position: relative;
+    display: flex; align-items: center; gap: 12px;
+  }
+  .or-divider::before, .or-divider::after { content: ''; flex: 1; height: 1px; background: var(--border); }
+
+  .record-btn {
+    width: 100%; padding: 16px 24px;
+    background: linear-gradient(135deg, rgba(239,68,68,.12), rgba(239,68,68,.06));
+    border: 1px solid rgba(239,68,68,.3);
+    border-radius: 12px; color: #fca5a5;
+    font-family: 'Syne', sans-serif; font-size: .95rem; font-weight: 600;
+    cursor: pointer; transition: all .2s;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+  }
+  .record-btn:hover { background: rgba(239,68,68,.2); border-color: var(--red); }
+  .record-btn.recording {
+    background: rgba(239,68,68,.25);
+    border-color: var(--red);
+    animation: rec-pulse 1s infinite;
+  }
+
+  .rec-dot { width: 10px; height: 10px; border-radius: 50%; background: var(--red); }
+  .record-btn.recording .rec-dot { animation: blink 1s infinite; }
+
+  /* ── File preview ── */
+  .file-preview {
+    display: none;
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 14px 18px;
+    margin-top: 16px;
+    align-items: center; gap: 12px;
+    font-size: .88rem;
+  }
+  .file-preview.show { display: flex; }
+  .file-icon { font-size: 20px; }
+  .file-name { flex: 1; font-family: 'DM Mono', monospace; color: var(--accent); font-size: .8rem; }
+  .file-size { color: var(--muted); font-size: .78rem; }
+  .file-remove { cursor: pointer; color: var(--muted); font-size: 16px; transition: color .2s; }
+  .file-remove:hover { color: var(--red); }
+
+  /* ── Analyze button ── */
+  .analyze-btn {
+    width: 100%; padding: 18px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none; border-radius: 12px;
+    color: #fff; font-family: 'Syne', sans-serif;
+    font-size: 1rem; font-weight: 700; letter-spacing: .05em;
+    cursor: pointer; transition: all .2s;
+    margin-top: 22px;
+    display: flex; align-items: center; justify-content: center; gap: 10px;
+    box-shadow: 0 0 30px rgba(0,212,255,.2);
+  }
+  .analyze-btn:hover { box-shadow: 0 0 50px rgba(0,212,255,.35); transform: translateY(-1px); }
+  .analyze-btn:disabled { opacity: .4; cursor: not-allowed; transform: none; box-shadow: none; }
+
+  /* ── Loading ── */
+  #loading { display: none; text-align: center; padding: 40px; }
+  .spinner {
+    width: 48px; height: 48px; border: 3px solid var(--border);
+    border-top-color: var(--accent); border-radius: 50%;
+    animation: spin 1s linear infinite; margin: 0 auto 16px;
+  }
+  .loading-text { font-family: 'DM Mono', monospace; font-size: .85rem; color: var(--muted); }
+  .loading-steps { margin-top: 8px; }
+  .loading-step { font-size: .75rem; color: var(--muted); animation: fadeStep 3s infinite; }
+
+  /* ── Results ── */
+  #results { display: none; }
+
+  .risk-banner {
+    border-radius: 16px; padding: 28px 32px;
+    display: flex; align-items: center; gap: 24px;
+    margin-bottom: 24px; border: 1px solid;
+  }
+  .risk-banner.Healthy { border-color: rgba(16,185,129,.3); background: rgba(16,185,129,.08); }
+  .risk-banner.Mild { border-color: rgba(245,158,11,.3); background: rgba(245,158,11,.08); }
+  .risk-banner.High { border-color: rgba(239,68,68,.3); background: rgba(239,68,68,.08); }
+
+  .risk-icon { font-size: 3rem; flex-shrink: 0; }
+  .risk-label {
+    font-family: 'DM Mono', monospace; font-size: .75rem; letter-spacing: .15em;
+    text-transform: uppercase; margin-bottom: 4px;
+  }
+  .risk-title {
+    font-family: 'Syne', sans-serif; font-size: 2rem; font-weight: 800; line-height: 1;
+  }
+  .risk-conf { font-size: .85rem; color: var(--muted); margin-top: 4px; }
+
+  /* ── Probability bars ── */
+  .prob-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; margin-bottom: 24px; }
+  @media(max-width: 600px) { .prob-grid { grid-template-columns: 1fr; } }
+
+  .prob-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 18px;
+  }
+  .prob-card-label { font-size: .8rem; color: var(--muted); margin-bottom: 8px; font-family: 'DM Mono', monospace; }
+  .prob-card-value {
+    font-family: 'Syne', sans-serif; font-size: 1.8rem; font-weight: 800;
+  }
+  .prob-bar-track { height: 4px; background: var(--border); border-radius: 4px; margin-top: 10px; }
+  .prob-bar-fill { height: 100%; border-radius: 4px; transition: width 1s cubic-bezier(.4,0,.2,1); }
+  .c-green { color: var(--green); }
+  .c-orange { color: var(--orange); }
+  .c-red { color: var(--red); }
+  .bg-green { background: var(--green); }
+  .bg-orange { background: var(--orange); }
+  .bg-red { background: var(--red); }
+
+  /* ── Stats row ── */
+  .stats-row { display: grid; grid-template-columns: repeat(4,1fr); gap: 14px; margin-bottom: 24px; }
+  @media(max-width: 600px) { .stats-row { grid-template-columns: 1fr 1fr; } }
+
+  .stat-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; padding: 16px;
+    text-align: center;
+  }
+  .stat-value { font-family: 'Syne', sans-serif; font-size: 1.3rem; font-weight: 700; color: var(--accent); }
+  .stat-label { font-family: 'DM Mono', monospace; font-size: .7rem; color: var(--muted); margin-top: 4px; letter-spacing: .1em; text-transform: uppercase; }
+
+  /* ── Description card ── */
+  .desc-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 24px; margin-bottom: 24px;
+  }
+  .desc-card p { color: var(--muted); font-size: .92rem; line-height: 1.7; }
+
+  /* ── Recommendations ── */
+  .rec-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 24px; margin-bottom: 28px;
+  }
+  .rec-list { list-style: none; margin-top: 14px; display: flex; flex-direction: column; gap: 10px; }
+  .rec-list li {
+    display: flex; align-items: flex-start; gap: 12px;
+    font-size: .9rem; color: var(--muted); line-height: 1.5;
+  }
+  .rec-list li::before { content: '→'; color: var(--accent); font-family: 'DM Mono', monospace; flex-shrink: 0; }
+
+  /* ── Disclaimer ── */
+  .disclaimer {
+    background: rgba(245,158,11,.06); border: 1px solid rgba(245,158,11,.2);
+    border-radius: 12px; padding: 16px 20px;
+    font-size: .8rem; color: var(--muted); line-height: 1.6;
+    display: flex; gap: 10px; align-items: flex-start;
+  }
+  .disclaimer-icon { font-size: 1rem; flex-shrink: 0; margin-top: 1px; }
+
+  /* ── New analysis btn ── */
+  .reset-btn {
+    width: 100%; padding: 14px;
+    background: transparent; border: 1px solid var(--border);
+    border-radius: 12px; color: var(--muted);
+    font-family: 'Syne', sans-serif; font-size: .9rem; font-weight: 600;
+    cursor: pointer; transition: all .2s; margin-top: 16px;
+  }
+  .reset-btn:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Waveform visualizer ── */
+  #waveform-canvas {
+    width: 100%; height: 60px; border-radius: 8px;
+    background: var(--surface2); display: none; margin-top: 12px;
+  }
+
+  /* ── Keyframes ── */
+  @keyframes spin { to { transform: rotate(360deg); } }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:.4} }
+  @keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+  @keyframes rec-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(239,68,68,.3)} 50%{box-shadow:0 0 0 8px rgba(239,68,68,0)} }
+  @keyframes fadeIn { from{opacity:0;transform:translateY(16px)} to{opacity:1;transform:translateY(0)} }
+  @keyframes fadeStep { 0%,100%{opacity:.3} 50%{opacity:1} }
+
+  .fade-in { animation: fadeIn .5s ease forwards; }
+
+  /* ── API URL config ── */
+  .api-config {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 12px 16px; margin-bottom: 20px;
+    display: flex; align-items: center; gap: 10px;
+  }
+  .api-config label { font-family: 'DM Mono', monospace; font-size: .75rem; color: var(--muted); white-space: nowrap; }
+  .api-config input {
+    flex: 1; background: transparent; border: none; outline: none;
+    color: var(--accent); font-family: 'DM Mono', monospace; font-size: .8rem;
+  }
+  .api-status { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); flex-shrink: 0; }
+  .api-status.ok { background: var(--green); }
+  .api-status.err { background: var(--red); }
+</style>
+</head>
+<body>
+<div class="blob blob-1"></div>
+<div class="blob blob-2"></div>
+
+<div class="container">
+
+  <!-- Header -->
+  <header>
+    <div class="logo"><span class="logo-dot"></span>CoughSense AI</div>
+    <h1>Respiratory Risk<br/>Screening</h1>
+    <p class="subtitle">Upload or record a cough sample. Our AI analyzes acoustic patterns to assess potential respiratory risk.</p>
+  </header>
+
+  <!-- API Config -->
+  <div class="api-config">
+    <label>API ▸</label>
+    <input type="text" id="api-url" value="http://localhost:8000" placeholder="http://localhost:8000" />
+    <div class="api-status" id="api-status"></div>
+  </div>
+
+  <!-- Upload Card -->
+  <div class="card" id="upload-card">
+    <div class="card-label">01 Input Audio</div>
+
+    <div class="drop-zone" id="drop-zone">
+      <input type="file" id="file-input" accept=".wav,.mp3,.ogg,.webm,.m4a" />
+      <div class="drop-icon">🎵</div>
+      <div class="drop-title">Drop audio file here</div>
+      <div class="drop-sub">or click to browse</div>
+      <div class="drop-formats">WAV · MP3 · OGG · WebM · M4A</div>
+    </div>
+
+    <div class="or-divider">or record live</div>
+
+    <button class="record-btn" id="record-btn">
+      <span class="rec-dot"></span>
+      <span id="record-label">Start Recording</span>
+    </button>
+    <canvas id="waveform-canvas"></canvas>
+
+    <div class="file-preview" id="file-preview">
+      <span class="file-icon">🎤</span>
+      <span class="file-name" id="file-name">—</span>
+      <span class="file-size" id="file-size">—</span>
+      <span class="file-remove" id="file-remove">✕</span>
+    </div>
+
+    <button class="analyze-btn" id="analyze-btn" disabled>
+      ⚡ Analyze Cough Sample
+    </button>
+  </div>
+
+  <!-- Loading -->
+  <div id="loading" class="card">
+    <div class="spinner"></div>
+    <div class="loading-text">Analyzing audio sample...</div>
+    <div class="loading-steps">
+      <div class="loading-step">Extracting MFCC features · Spectral analysis · Neural classification</div>
+    </div>
+  </div>
+
+  <!-- Results -->
+  <div id="results"></div>
+
+</div>
+
+<script>
+// ── Config ──────────────────────────────────────────────────────────────────
+const apiUrlInput = document.getElementById('api-url');
+const apiStatus   = document.getElementById('api-status');
+
+async function checkHealth() {
+  try {
+    const r = await fetch(apiUrlInput.value.replace(/\/$/, '') + '/health');
+    apiStatus.className = 'api-status ' + (r.ok ? 'ok' : 'err');
+  } catch { apiStatus.className = 'api-status err'; }
+}
+apiUrlInput.addEventListener('change', checkHealth);
+checkHealth();
+
+// ── State ────────────────────────────────────────────────────────────────────
+let selectedFile = null;
+let mediaRecorder = null;
+let audioChunks  = [];
+let isRecording  = false;
+let animFrame    = null;
+
+// ── DOM refs ─────────────────────────────────────────────────────────────────
+const fileInput   = document.getElementById('file-input');
+const dropZone    = document.getElementById('drop-zone');
+const preview     = document.getElementById('file-preview');
+const fileName    = document.getElementById('file-name');
+const fileSize    = document.getElementById('file-size');
+const fileRemove  = document.getElementById('file-remove');
+const analyzeBtn  = document.getElementById('analyze-btn');
+const recordBtn   = document.getElementById('record-btn');
+const recordLabel = document.getElementById('record-label');
+const waveCanvas  = document.getElementById('waveform-canvas');
+const loading     = document.getElementById('loading');
+const results     = document.getElementById('results');
+
+// ── File handling ─────────────────────────────────────────────────────────────
+fileInput.addEventListener('change', e => setFile(e.target.files[0]));
+
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragover'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragover'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault(); dropZone.classList.remove('dragover');
+  setFile(e.dataTransfer.files[0]);
+});
+
+fileRemove.addEventListener('click', () => setFile(null));
+
+function setFile(f) {
+  selectedFile = f;
+  if (f) {
+    fileName.textContent = f.name;
+    fileSize.textContent = (f.size / 1024).toFixed(1) + ' KB';
+    preview.classList.add('show');
+    analyzeBtn.disabled = false;
+  } else {
+    preview.classList.remove('show');
+    analyzeBtn.disabled = true;
+    fileInput.value = '';
+    selectedFile = null;
+  }
+}
+
+// ── Recording ─────────────────────────────────────────────────────────────────
+recordBtn.addEventListener('click', async () => {
+  if (!isRecording) {
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      mediaRecorder = new MediaRecorder(stream);
+      audioChunks = [];
+      mediaRecorder.ondataavailable = e => audioChunks.push(e.data);
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(audioChunks, { type: 'audio/webm' });
+        const file = new File([blob], 'recording.webm', { type: 'audio/webm' });
+        setFile(file);
+        stream.getTracks().forEach(t => t.stop());
+        cancelAnimationFrame(animFrame);
+        waveCanvas.style.display = 'none';
+      };
+
+      // Waveform visualizer
+      const ctx = new AudioContext();
+      const source = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 256;
+      source.connect(analyser);
+      const bufLen = analyser.frequencyBinCount;
+      const dataArr = new Uint8Array(bufLen);
+      waveCanvas.style.display = 'block';
+      const wCtx = waveCanvas.getContext('2d');
+
+      function drawWave() {
+        animFrame = requestAnimationFrame(drawWave);
+        analyser.getByteTimeDomainData(dataArr);
+        wCtx.clearRect(0, 0, waveCanvas.width, waveCanvas.height);
+        wCtx.fillStyle = '#1a2235';
+        wCtx.fillRect(0, 0, waveCanvas.width, waveCanvas.height);
+        wCtx.lineWidth = 2;
+        wCtx.strokeStyle = '#00d4ff';
+        wCtx.beginPath();
+        const sl = waveCanvas.width / bufLen;
+        let x = 0;
+        for (let i = 0; i < bufLen; i++) {
+          const v = dataArr[i] / 128;
+          const y = v * (waveCanvas.height / 2);
+          i === 0 ? wCtx.moveTo(x, y) : wCtx.lineTo(x, y);
+          x += sl;
+        }
+        wCtx.stroke();
+      }
+      drawWave();
+
+      mediaRecorder.start();
+      isRecording = true;
+      recordBtn.classList.add('recording');
+      recordLabel.textContent = 'Stop Recording';
+    } catch (e) {
+      alert('Microphone access denied. Please allow microphone and try again.');
+    }
+  } else {
+    mediaRecorder.stop();
+    isRecording = false;
+    recordBtn.classList.remove('recording');
+    recordLabel.textContent = 'Start Recording';
+  }
+});
+
+// ── Analyze ───────────────────────────────────────────────────────────────────
+analyzeBtn.addEventListener('click', analyze);
+
+async function analyze() {
+  if (!selectedFile) return;
+
+  document.getElementById('upload-card').style.display = 'none';
+  loading.style.display = 'block';
+  results.style.display = 'none';
+
+  const formData = new FormData();
+  formData.append('file', selectedFile);
+
+  try {
+    const baseUrl = apiUrlInput.value.replace(/\/$/, '');
+    const res = await fetch(baseUrl + '/analyze', { method: 'POST', body: formData });
+    if (!res.ok) {
+      const err = await res.json();
+      throw new Error(err.detail || 'Server error');
+    }
+    const data = await res.json();
+    showResults(data);
+  } catch (e) {
+    loading.style.display = 'none';
+    document.getElementById('upload-card').style.display = 'block';
+    alert('Error: ' + e.message + '\n\nMake sure the backend is running and the API URL is correct.');
+  }
+}
+
+// ── Render results ────────────────────────────────────────────────────────────
+function showResults(d) {
+  loading.style.display = 'none';
+
+  const riskKey  = d.risk_level.replace(' Risk', '').replace('Mild', 'Mild');
+  const bannerCls = d.prediction === 'Healthy' ? 'Healthy' : d.prediction === 'Mild Risk' ? 'Mild' : 'High';
+  const icon = d.prediction === 'Healthy' ? '✅' : d.prediction === 'Mild Risk' ? '⚠️' : '🚨';
+
+  const probs = d.probabilities;
+  const stats = d.audio_stats;
+
+  results.innerHTML = `
+    <div class="risk-banner ${bannerCls} fade-in">
+      <div class="risk-icon">${icon}</div>
+      <div>
+        <div class="risk-label">Analysis Result</div>
+        <div class="risk-title">${d.prediction}</div>
+        <div class="risk-conf">Confidence: ${d.confidence}%</div>
+      </div>
+    </div>
+
+    <div class="prob-grid fade-in">
+      ${probCard('Healthy',   probs['Healthy'],   'c-green',  'bg-green')}
+      ${probCard('Mild Risk', probs['Mild Risk'], 'c-orange', 'bg-orange')}
+      ${probCard('High Risk', probs['High Risk'], 'c-red',    'bg-red')}
+    </div>
+
+    <div class="stats-row fade-in">
+      <div class="stat-card">
+        <div class="stat-value">${stats.duration_seconds}s</div>
+        <div class="stat-label">Duration</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${stats.db_level} dB</div>
+        <div class="stat-label">Level</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${stats.rms_energy}</div>
+        <div class="stat-label">RMS Energy</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-value">${stats.zero_crossing_rate}</div>
+        <div class="stat-label">ZCR</div>
+      </div>
+    </div>
+
+    <div class="card desc-card fade-in">
+      <div class="card-label">02 Assessment</div>
+      <p>${d.description}</p>
+    </div>
+
+    <div class="card rec-card fade-in">
+      <div class="card-label">03 Recommendations</div>
+      <ul class="rec-list">
+        ${d.recommendations.map(r => `<li>${r}</li>`).join('')}
+      </ul>
+    </div>
+
+    <div class="disclaimer fade-in">
+      <span class="disclaimer-icon">⚠️</span>
+      <span>This tool is for educational and screening purposes only. It is not a substitute for professional medical diagnosis. Always consult a qualified healthcare provider for medical advice.</span>
+    </div>
+
+    <button class="reset-btn" onclick="resetUI()">← Analyze Another Sample</button>
+  `;
+
+  results.style.display = 'block';
+
+  // Animate bars after render
+  setTimeout(() => {
+    document.querySelectorAll('.prob-bar-fill').forEach(bar => {
+      bar.style.width = bar.dataset.width + '%';
+    });
+  }, 100);
+}
+
+function probCard(label, pct, textCls, bgCls) {
+  return `
+    <div class="prob-card">
+      <div class="prob-card-label">${label}</div>
+      <div class="prob-card-value ${textCls}">${pct}%</div>
+      <div class="prob-bar-track">
+        <div class="prob-bar-fill ${bgCls}" data-width="${pct}" style="width:0%"></div>
+      </div>
+    </div>`;
+}
+
+function resetUI() {
+  results.style.display = 'none';
+  document.getElementById('upload-card').style.display = 'block';
+  setFile(null);
+}
+</script>
+</body>
+</html>
